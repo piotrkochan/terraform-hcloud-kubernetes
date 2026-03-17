@@ -1,15 +1,18 @@
 # Dedicated Servers (Hetzner Robot)
-# This file manages dedicated bare-metal servers joining the cluster as workers.
-# Servers must be pre-provisioned with vSwitch connectivity to the cluster network.
+# Manages dedicated bare-metal servers joining the cluster as workers via vSwitch.
+# vSwitch subnet must be created externally and passed via dedicated_servers_vswitch_subnet_id.
 
 locals {
   # Normalize dedicated servers with computed fields
   dedicated_servers_normalized = [
     for s in var.dedicated_servers : {
       hostname          = s.hostname
-      vswitch_id        = s.vswitch_id
+      server_number     = s.server_number
+      public_ipv4       = s.public_ipv4
       private_ipv4      = s.private_ipv4
+      private_ipv4_cidr = s.private_ipv4_cidr
       network_interface = s.network_interface
+      vlan_id           = s.vlan_id
       mode              = s.mode
       labels = merge(
         s.labels,
@@ -21,9 +24,6 @@ locals {
         taint
       )]
       install_disk        = s.install_disk
-      install_talos       = s.install_talos
-      rescue_ssh_host     = s.rescue_ssh_host
-      rescue_ssh_user     = s.rescue_ssh_user
       rescue_ssh_key_path = s.rescue_ssh_key_path
     }
   ]
@@ -48,45 +48,13 @@ locals {
   dedicated_servers_talos_private_ipv4_list = [
     for s in local.dedicated_servers_talos : s.private_ipv4
   ]
-
-  # Group by vSwitch ID for subnet creation (keys must be strings)
-  dedicated_servers_by_vswitch = {
-    for s in local.dedicated_servers_normalized :
-    tostring(s.vswitch_id) => s...
-  }
-}
-
-
-# vSwitch Subnets
-# Create one vSwitch-type subnet per unique vSwitch ID
-
-resource "hcloud_network_subnet" "dedicated_vswitch" {
-  for_each = local.dedicated_servers_by_vswitch
-
-  network_id   = local.hcloud_network_id
-  type         = "vswitch"
-  network_zone = local.hcloud_network_zone
-  vswitch_id   = tonumber(each.key)
-
-  # Allocate from the end of the node CIDR range (before autoscaler subnet)
-  ip_range = cidrsubnet(
-    local.network_node_ipv4_cidr,
-    local.network_node_ipv4_subnet_mask_size - split("/", local.network_node_ipv4_cidr)[1],
-    pow(2, local.network_node_ipv4_subnet_mask_size - split("/", local.network_node_ipv4_cidr)[1]) - 2 - index(keys(local.dedicated_servers_by_vswitch), each.key)
-  )
-
-  depends_on = [
-    hcloud_network_subnet.control_plane,
-    hcloud_network_subnet.load_balancer,
-    hcloud_network_subnet.worker
-  ]
 }
 
 
 # Talos Configuration (mode: talos)
 
 locals {
-  # Talos config patches for dedicated servers
+  # Talos config patches for dedicated servers — uses VLAN interface
   dedicated_server_talos_config_patch = {
     for s in local.dedicated_servers_talos : s.hostname => {
       machine = {
@@ -102,14 +70,18 @@ locals {
           hostname = s.hostname
           interfaces = [{
             interface = s.network_interface
-            addresses = ["${s.private_ipv4}/${local.network_node_ipv4_subnet_mask_size}"]
-            routes = concat(
-              [{
-                network = local.network_ipv4_cidr
-                gateway = local.network_ipv4_gateway
-              }],
-              local.talos_extra_routes
-            )
+            vlans = [{
+              vlanId    = s.vlan_id
+              mtu       = 1400
+              addresses = ["${s.private_ipv4}/${s.private_ipv4_cidr}"]
+              routes = concat(
+                [{
+                  network = local.network_ipv4_cidr
+                  gateway = local.network_ipv4_gateway
+                }],
+                local.talos_extra_routes
+              )
+            }]
           }]
           nameservers      = local.talos_nameservers
           extraHostEntries = local.talos_extra_host_entries
@@ -205,37 +177,36 @@ data "talos_machine_configuration" "dedicated_server" {
 }
 
 # Apply Talos configuration to dedicated servers
-# Note: This requires the server to be running Talos and reachable
 resource "talos_machine_configuration_apply" "dedicated_server" {
   for_each = { for s in local.dedicated_servers_talos : s.hostname => s }
 
   client_configuration        = talos_machine_secrets.this.client_configuration
   machine_configuration_input = data.talos_machine_configuration.dedicated_server[each.key].machine_configuration
-  endpoint                    = each.value.private_ipv4
+  endpoint                    = each.value.public_ipv4
   node                        = each.value.private_ipv4
   apply_mode                  = var.talos_machine_configuration_apply_mode
 
   on_destroy = {
     graceful = var.cluster_graceful_destroy
-    reset    = false # Don't reset dedicated servers on destroy
+    reset    = false
     reboot   = false
   }
 
   depends_on = [
-    hcloud_network_subnet.dedicated_vswitch,
+    terraform_data.dedicated_server_talos_install,
     terraform_data.upgrade_kubernetes,
     talos_machine_configuration_apply.worker
   ]
 }
 
 
-# Automated Talos Installation (optional)
-# Installs Talos on dedicated servers via SSH when in rescue mode
+# Automated Talos Installation
+# Checks if Talos is already running. If not — activates rescue via Robot API,
+# installs Talos via SSH, and reboots.
 
 resource "terraform_data" "dedicated_server_talos_install" {
   for_each = {
     for s in local.dedicated_servers_talos : s.hostname => s
-    if s.install_talos
   }
 
   triggers_replace = [
@@ -245,43 +216,104 @@ resource "terraform_data" "dedicated_server_talos_install" {
   ]
 
   provisioner "local-exec" {
+    environment = {
+      TALOSCONFIG = nonsensitive(data.talos_client_configuration.this.talos_config)
+      ROBOT_USER  = var.dedicated_servers_robot_user
+      ROBOT_PASS  = var.dedicated_servers_robot_password
+    }
     command = <<-EOT
       set -eu
 
-      echo "Installing Talos on dedicated server ${each.value.hostname} (${each.value.rescue_ssh_host})..."
+      SERVER_NUM="${each.value.server_number}"
+      PUBLIC_IP="${each.value.public_ipv4}"
+      PRIVATE_IP="${each.value.private_ipv4}"
+      HOSTNAME="${each.value.hostname}"
+      INSTALL_DISK="${each.value.install_disk}"
+      SSH_KEY="${each.value.rescue_ssh_key_path}"
+      IMAGE_URL="${local.talos_amd64_image_url}"
 
-      # SSH into rescue mode and install Talos
-      ssh -i "${each.value.rescue_ssh_key_path}" \
-          -o StrictHostKeyChecking=no \
-          -o UserKnownHostsFile=/dev/null \
-          -o ConnectTimeout=30 \
-          ${each.value.rescue_ssh_user}@${each.value.rescue_ssh_host} \
+      echo "=== Dedicated server $HOSTNAME ($PUBLIC_IP) ==="
+
+      # 1. Check if Talos is already running
+      if talosctl --talosconfig <(echo "$TALOSCONFIG") \
+         -e "$PUBLIC_IP" -n "$PRIVATE_IP" version >/dev/null 2>&1; then
+        echo "Talos is already running on $HOSTNAME. Skipping install."
+        exit 0
+      fi
+
+      echo "Talos not running on $HOSTNAME."
+
+      # 2. Check if server is in rescue mode (SSH reachable)
+      if ! ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+           -o ConnectTimeout=10 root@"$PUBLIC_IP" "echo rescue_ok" >/dev/null 2>&1; then
+
+        echo "Server not in rescue mode. Activating rescue via Robot API..."
+
+        # Activate rescue
+        SSH_KEY_FINGERPRINT=$(ssh-keygen -lf "$SSH_KEY.pub" -E md5 | awk '{print $2}' | sed 's/MD5://')
+        curl -sf -u "$ROBOT_USER:$ROBOT_PASS" \
+          -d "os=linux" -d "arch=64" -d "authorized_key[]=$SSH_KEY_FINGERPRINT" \
+          "https://robot-ws.your-server.de/boot/$SERVER_NUM/rescue" >/dev/null
+
+        # Rename server
+        curl -sf -u "$ROBOT_USER:$ROBOT_PASS" \
+          -d "server_name=$HOSTNAME" \
+          "https://robot-ws.your-server.de/server/$SERVER_NUM" >/dev/null
+
+        # Hardware reset
+        curl -sf -u "$ROBOT_USER:$ROBOT_PASS" \
+          -d "type=hw" \
+          "https://robot-ws.your-server.de/reset/$SERVER_NUM" >/dev/null
+
+        echo "Server resetting into rescue mode. Waiting 60s..."
+        sleep 60
+
+        # Wait for SSH
+        for i in $(seq 1 30); do
+          if ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+               -o ConnectTimeout=5 root@"$PUBLIC_IP" "echo rescue_ok" >/dev/null 2>&1; then
+            break
+          fi
+          echo "Waiting for rescue SSH... ($i/30)"
+          sleep 10
+        done
+      fi
+
+      echo "Installing Talos on $HOSTNAME..."
+
+      # 3. SSH into rescue and install Talos
+      ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+          -o ConnectTimeout=30 root@"$PUBLIC_IP" \
           "set -eu; \
            echo 'Downloading Talos image...'; \
-           wget -q -O /tmp/talos.raw.xz '${local.talos_amd64_image_url}'; \
-           echo 'Writing Talos to disk ${each.value.install_disk}...'; \
-           xz -d -c /tmp/talos.raw.xz | dd of=${each.value.install_disk} bs=4M status=progress; \
+           wget -q -O /tmp/talos.raw.xz '$IMAGE_URL'; \
+           echo 'Writing Talos to disk $INSTALL_DISK...'; \
+           xz -d -c /tmp/talos.raw.xz | dd of=$INSTALL_DISK bs=4M status=progress; \
            sync; \
            echo 'Talos installation complete. Rebooting...'; \
            reboot" || true
 
-      echo "Server ${each.value.hostname} is rebooting into Talos."
-      echo "Waiting 60 seconds for Talos to boot..."
-      sleep 60
+      echo "Server $HOSTNAME rebooting into Talos. Waiting 90s..."
+      sleep 90
 
-      echo "Talos installation completed for ${each.value.hostname}."
-      echo "The machine configuration will be applied automatically."
+      # 4. Wait for Talos API
+      for i in $(seq 1 30); do
+        if talosctl --talosconfig <(echo "$TALOSCONFIG") \
+           -e "$PUBLIC_IP" -n "$PUBLIC_IP" version >/dev/null 2>&1; then
+          echo "Talos is up on $HOSTNAME!"
+          exit 0
+        fi
+        echo "Waiting for Talos API on $HOSTNAME... ($i/30)"
+        sleep 10
+      done
+
+      echo "WARNING: Talos API not reachable after timeout. Config apply may fail."
     EOT
   }
-
-  depends_on = [
-    hcloud_network_subnet.dedicated_vswitch
-  ]
 }
 
 
 # Bootstrap Tokens (mode: manual)
-# Generate Kubernetes bootstrap tokens for manual mode servers
 
 resource "random_id" "dedicated_server_bootstrap_token_id" {
   for_each = { for s in local.dedicated_servers_manual : s.hostname => s }
@@ -299,7 +331,6 @@ resource "random_password" "dedicated_server_bootstrap_token_secret" {
 }
 
 locals {
-  # Build join information for manual mode servers
   dedicated_servers_join_info = {
     for s in local.dedicated_servers_manual : s.hostname => {
       hostname     = s.hostname
@@ -310,7 +341,6 @@ locals {
       api_server   = local.kube_api_url_internal
       labels       = s.labels
       taints       = s.taints
-      # Generate bootstrap token secret manifest
       bootstrap_secret_manifest = yamlencode({
         apiVersion = "v1"
         kind       = "Secret"

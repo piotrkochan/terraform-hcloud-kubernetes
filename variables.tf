@@ -447,87 +447,40 @@ variable "worker_config_patches" {
 variable "dedicated_servers" {
   type = list(object({
     hostname          = string
-    vswitch_id        = number
+    server_number     = number
+    public_ipv4       = string
     private_ipv4      = string
+    private_ipv4_cidr = optional(string, "20")
     network_interface = string
-    mode              = string # "talos" or "manual"
+    vlan_id           = number
+    mode              = optional(string, "talos")
     labels            = optional(map(string), {})
     annotations       = optional(map(string), {})
     taints            = optional(list(string), [])
-    # Talos mode options
-    install_disk = optional(string, "/dev/sda")
-    # Automated Talos installation (optional, requires server in rescue mode)
-    install_talos       = optional(bool, false)
-    rescue_ssh_host     = optional(string)
-    rescue_ssh_user     = optional(string, "root")
-    rescue_ssh_key_path = optional(string)
+    install_disk      = optional(string, "/dev/nvme0n1")
+    rescue_ssh_key_path = optional(string, "~/.ssh/id_rsa")
   }))
   default     = []
-  description = <<-EOT
-    Defines Hetzner Robot dedicated servers to join the cluster as worker nodes.
-    Each server must be pre-provisioned with a vSwitch connection to the cluster network.
-
-    **Modes:**
-    - `talos`: Server runs Talos Linux, managed like cloud workers
-    - `manual`: Server runs custom OS, joins via bootstrap token
-
-    **Prerequisites:**
-    1. Provision dedicated server via Hetzner Robot
-    2. Create vSwitch and attach to both the server and the Hetzner Cloud Network
-    3. Configure the network interface on the server for the vSwitch
-
-    **Manual Talos Installation:**
-    1. Boot server into rescue mode
-    2. Download Talos image: `wget -O /tmp/talos.raw.xz https://factory.talos.dev/image/<schematic>/<version>/hcloud-amd64.raw.xz`
-    3. Write to disk: `xz -d -c /tmp/talos.raw.xz | dd of=/dev/sda bs=4M status=progress && sync`
-    4. Reboot and apply machine config from output: `talosctl apply-config --insecure --nodes <private_ip> --file machine-config.yaml`
-  EOT
+  description = "Dedicated servers to join cluster as workers. Module auto-detects Talos, activates rescue if needed, installs, and joins."
 
   validation {
     condition     = length(var.dedicated_servers) == length(distinct([for s in var.dedicated_servers : s.hostname]))
     error_message = "Dedicated server hostnames must be unique."
   }
+}
 
-  validation {
-    condition = alltrue([
-      for s in var.dedicated_servers : contains(["talos", "manual"], s.mode)
-    ])
-    error_message = "Dedicated server mode must be either 'talos' or 'manual'."
-  }
+variable "dedicated_servers_robot_user" {
+  type      = string
+  default   = ""
+  sensitive = true
+  description = "Hetzner Robot API username (needed for rescue mode activation on dedicated servers)"
+}
 
-  validation {
-    condition = alltrue([
-      for s in var.dedicated_servers : can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", s.private_ipv4))
-    ])
-    error_message = "Each private_ipv4 must be a valid IPv4 address."
-  }
-
-  validation {
-    condition = alltrue([
-      for s in var.dedicated_servers : s.vswitch_id > 0
-    ])
-    error_message = "Each vswitch_id must be a positive integer."
-  }
-
-  validation {
-    condition = alltrue([
-      for s in var.dedicated_servers : length(s.hostname) <= 63
-    ])
-    error_message = "Each hostname must not exceed 63 characters."
-  }
-
-  validation {
-    condition = alltrue([
-      for s in var.dedicated_servers : (
-        !s.install_talos || (
-          s.mode == "talos" &&
-          s.rescue_ssh_host != null &&
-          s.rescue_ssh_key_path != null
-        )
-      )
-    ])
-    error_message = "When install_talos is true, mode must be 'talos' and both rescue_ssh_host and rescue_ssh_key_path must be provided."
-  }
+variable "dedicated_servers_robot_password" {
+  type      = string
+  default   = ""
+  sensitive = true
+  description = "Hetzner Robot API password"
 }
 
 variable "dedicated_servers_config_patches" {
