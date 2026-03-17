@@ -221,6 +221,7 @@ resource "terraform_data" "dedicated_server_talos_install" {
       ROBOT_USER  = var.dedicated_servers_robot_user
       ROBOT_PASS  = var.dedicated_servers_robot_password
     }
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -eu
 
@@ -232,10 +233,14 @@ resource "terraform_data" "dedicated_server_talos_install" {
       SSH_KEY="${each.value.rescue_ssh_key_path}"
       IMAGE_URL="${local.talos_amd64_image_url}"
 
+      TALOS_CFG=$(mktemp)
+      trap 'rm -f "$TALOS_CFG"' EXIT
+      echo "$TALOSCONFIG" > "$TALOS_CFG"
+
       echo "=== Dedicated server $HOSTNAME ($PUBLIC_IP) ==="
 
       # 1. Check if Talos is already running
-      if talosctl --talosconfig <(echo "$TALOSCONFIG") \
+      if talosctl --talosconfig "$TALOS_CFG" \
          -e "$PUBLIC_IP" -n "$PRIVATE_IP" version >/dev/null 2>&1; then
         echo "Talos is already running on $HOSTNAME. Skipping install."
         exit 0
@@ -298,7 +303,7 @@ resource "terraform_data" "dedicated_server_talos_install" {
 
       # 4. Wait for Talos API
       for i in $(seq 1 30); do
-        if talosctl --talosconfig <(echo "$TALOSCONFIG") \
+        if talosctl --talosconfig "$TALOS_CFG" \
            -e "$PUBLIC_IP" -n "$PUBLIC_IP" version >/dev/null 2>&1; then
           echo "Talos is up on $HOSTNAME!"
           exit 0
