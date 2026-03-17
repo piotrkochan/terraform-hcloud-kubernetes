@@ -320,9 +320,13 @@ resource "terraform_data" "dedicated_server_talos_install" {
           -o ConnectTimeout=30 root@"$PUBLIC_IP" \
           "set -eu; \
            echo 'Downloading Talos metal image...'; \
-           wget -q -O /tmp/talos.raw.xz '$IMAGE_URL'; \
+           wget -q -O /tmp/talos.img '$IMAGE_URL'; \
            echo 'Writing Talos to disk $INSTALL_DISK...'; \
-           xz -d -c /tmp/talos.raw.xz | dd of=$INSTALL_DISK bs=4M status=progress; \
+           case '$IMAGE_URL' in \
+             *.zst) zstd -d -c /tmp/talos.img | dd of=$INSTALL_DISK bs=4M status=progress ;; \
+             *.xz)  xz -d -c /tmp/talos.img | dd of=$INSTALL_DISK bs=4M status=progress ;; \
+             *)     dd if=/tmp/talos.img of=$INSTALL_DISK bs=4M status=progress ;; \
+           esac; \
            sync; \
            echo 'Talos installation complete. Rebooting...'; \
            reboot" || true
