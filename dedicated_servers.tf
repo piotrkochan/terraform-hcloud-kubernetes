@@ -51,6 +51,23 @@ locals {
 }
 
 
+# vSwitch subnet — łączy vSwitch z Cloud Network
+resource "hcloud_network_subnet" "dedicated_vswitch" {
+  for_each = toset(distinct([for s in local.dedicated_servers_normalized : tostring(s.vlan_id)]))
+
+  network_id   = local.hcloud_network_id
+  type         = "vswitch"
+  network_zone = local.hcloud_network_zone
+  ip_range     = var.dedicated_servers_vswitch_ip_range
+  vswitch_id   = var.dedicated_servers_vswitch_id
+
+  depends_on = [
+    hcloud_network_subnet.control_plane,
+    hcloud_network_subnet.load_balancer
+  ]
+}
+
+
 # Talos Configuration (mode: talos)
 
 locals {
@@ -193,6 +210,7 @@ resource "talos_machine_configuration_apply" "dedicated_server" {
   }
 
   depends_on = [
+    hcloud_network_subnet.dedicated_vswitch,
     terraform_data.dedicated_server_talos_install,
     terraform_data.upgrade_kubernetes,
     talos_machine_configuration_apply.worker

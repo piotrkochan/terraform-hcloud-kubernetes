@@ -483,6 +483,18 @@ variable "dedicated_servers_robot_password" {
   description = "Hetzner Robot API password"
 }
 
+variable "dedicated_servers_vswitch_id" {
+  type        = number
+  default     = null
+  description = "Hetzner Robot vSwitch ID to connect to Cloud Network"
+}
+
+variable "dedicated_servers_vswitch_ip_range" {
+  type        = string
+  default     = "10.0.128.0/20"
+  description = "IP range for vSwitch subnet in Cloud Network"
+}
+
 variable "dedicated_servers_config_patches" {
   type        = any
   default     = []
