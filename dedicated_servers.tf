@@ -68,6 +68,15 @@ resource "hcloud_network_subnet" "dedicated_vswitch" {
 }
 
 
+# Metal image for dedicated servers (different platform than cloud VMs)
+data "talos_image_factory_urls" "metal_amd64" {
+  talos_version = var.talos_version
+  schematic_id  = local.talos_schematic_id
+  platform      = "metal"
+  architecture  = "amd64"
+}
+
+
 # Talos Configuration (mode: talos)
 
 locals {
@@ -249,7 +258,7 @@ resource "terraform_data" "dedicated_server_talos_install" {
       HOSTNAME="${each.value.hostname}"
       INSTALL_DISK="${each.value.install_disk}"
       SSH_KEY="$(eval echo ${each.value.rescue_ssh_key_path})"
-      IMAGE_URL="${local.talos_amd64_image_url}"
+      IMAGE_URL="${data.talos_image_factory_urls.metal_amd64.urls.disk_image}"
 
       TALOS_CFG=$(mktemp)
       trap 'rm -f "$TALOS_CFG"' EXIT
