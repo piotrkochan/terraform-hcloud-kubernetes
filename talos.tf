@@ -71,7 +71,8 @@ locals {
     control_plane_nodes                 = local.control_plane_private_ipv4_list
     worker_nodes = concat(
       local.worker_private_ipv4_list,
-      local.cluster_autoscaler_private_ipv4_list
+      local.cluster_autoscaler_private_ipv4_list,
+      local.dedicated_servers_talos_private_ipv4_list
     )
   })
 
@@ -198,6 +199,43 @@ resource "terraform_data" "upgrade_cluster_autoscaler" {
   ]
 }
 
+resource "terraform_data" "upgrade_dedicated_server" {
+  count = length(local.dedicated_servers_talos) > 0 ? 1 : 0
+
+  triggers_replace = [
+    var.talos_version,
+    local.talos_schematic_id
+  ]
+
+  provisioner "local-exec" {
+    when  = create
+    quiet = true
+    command = local.cluster_initialized ? join("\n", [
+      "set -eu",
+      local.talosctl_commands,
+      "printf '%s\\n' \"Start upgrading Dedicated Server Nodes\"",
+      templatefile("${path.module}/templates/talos_upgrade.sh.tftpl", {
+        upgrade_nodes      = local.dedicated_servers_talos_private_ipv4_list
+        talos_version      = var.talos_version
+        talos_schematic_id = local.talos_schematic_id
+      }),
+      "printf '%s\\n' \"Dedicated Server Nodes upgraded successfully\"",
+    ]) : "printf '%s\\n' \"Cluster not initialized, skipping Dedicated Server Node upgrade\""
+
+    environment = {
+      TALOSCONFIG = nonsensitive(data.talos_client_configuration.this.talos_config)
+    }
+  }
+
+  depends_on = [
+    data.external.talosctl_version_check,
+    data.talos_machine_configuration.dedicated_server,
+    terraform_data.upgrade_control_plane,
+    terraform_data.upgrade_worker,
+    terraform_data.upgrade_cluster_autoscaler
+  ]
+}
+
 resource "terraform_data" "upgrade_kubernetes" {
   triggers_replace = [
     var.kubernetes_version,
@@ -233,7 +271,8 @@ resource "terraform_data" "upgrade_kubernetes" {
     data.external.talosctl_version_check,
     terraform_data.upgrade_control_plane,
     terraform_data.upgrade_worker,
-    terraform_data.upgrade_cluster_autoscaler
+    terraform_data.upgrade_cluster_autoscaler,
+    terraform_data.upgrade_dedicated_server
   ]
 }
 
@@ -363,7 +402,8 @@ resource "terraform_data" "synchronize_manifests" {
     talos_machine_bootstrap.this,
     talos_machine_configuration_apply.control_plane,
     talos_machine_configuration_apply.worker,
-    terraform_data.talos_machine_configuration_apply_cluster_autoscaler
+    terraform_data.talos_machine_configuration_apply_cluster_autoscaler,
+    talos_machine_configuration_apply.dedicated_server
   ]
 }
 
