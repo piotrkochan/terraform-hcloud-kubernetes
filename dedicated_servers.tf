@@ -334,9 +334,9 @@ resource "terraform_data" "dedicated_server_talos_install" {
       echo "Server $HOSTNAME rebooting into Talos. Waiting 120s..."
       sleep 120
 
-      # 4. Wait for Talos API (maintenance mode = insecure)
+      # 4. Wait for Talos API (port 50000)
       for i in $(seq 1 20); do
-        if talosctl -e "$PUBLIC_IP" -n "$PUBLIC_IP" disks --insecure >/dev/null 2>&1; then
+        if nc -z -w3 "$PUBLIC_IP" 50000 2>/dev/null; then
           echo "Talos is up on $HOSTNAME!"
           exit 0
         fi
