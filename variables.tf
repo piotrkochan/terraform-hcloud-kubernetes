@@ -902,14 +902,14 @@ variable "talos_backup_s3_path_style" {
 
 variable "talos_backup_s3_access_key" {
   type        = string
-  sensitive   = true
+  # sensitive   = true
   default     = ""
   description = "S3 Access Key for Talos Backup."
 }
 
 variable "talos_backup_s3_secret_key" {
   type        = string
-  sensitive   = true
+  # sensitive   = true
   default     = ""
   description = "S3 Secret Access Key for Talos Backup."
 }
@@ -1171,7 +1171,7 @@ variable "rbac_cluster_roles" {
 variable "hcloud_token" {
   type        = string
   description = "The Hetzner Cloud API token used for authentication with Hetzner Cloud services. This token should be treated as sensitive information."
-  sensitive   = true
+  # sensitive   = true
 }
 
 variable "hcloud_network" {
@@ -1381,7 +1381,7 @@ variable "hcloud_csi_encryption_passphrase" {
   type        = string
   default     = null
   description = "Passphrase for encrypting volumes created by the Hcloud CSI driver. If not provided, a random passphrase will be generated. The passphrase must be 8-512 characters long and contain only printable 7-bit ASCII characters."
-  sensitive   = true
+  # sensitive   = true
 
   validation {
     condition     = var.hcloud_csi_encryption_passphrase == null || can(regex("^[ -~]{8,512}$", var.hcloud_csi_encryption_passphrase))

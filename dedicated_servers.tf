@@ -218,8 +218,8 @@ resource "terraform_data" "dedicated_server_talos_install" {
   provisioner "local-exec" {
     environment = {
       TALOSCONFIG = nonsensitive(data.talos_client_configuration.this.talos_config)
-      ROBOT_USER  = var.dedicated_servers_robot_user
-      ROBOT_PASS  = var.dedicated_servers_robot_password
+      ROBOT_USER  = nonsensitive(var.dedicated_servers_robot_user)
+      ROBOT_PASS  = nonsensitive(var.dedicated_servers_robot_password)
     }
     interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
