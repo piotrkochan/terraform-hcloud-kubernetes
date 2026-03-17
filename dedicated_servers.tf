@@ -314,10 +314,12 @@ resource "terraform_data" "dedicated_server_talos_install" {
       echo "Installing Talos on $HOSTNAME..."
 
       # 3. SSH into rescue and install Talos
+      echo "Installing Talos (metal image) on $HOSTNAME..."
+
       ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
           -o ConnectTimeout=30 root@"$PUBLIC_IP" \
           "set -eu; \
-           echo 'Downloading Talos image...'; \
+           echo 'Downloading Talos metal image...'; \
            wget -q -O /tmp/talos.raw.xz '$IMAGE_URL'; \
            echo 'Writing Talos to disk $INSTALL_DISK...'; \
            xz -d -c /tmp/talos.raw.xz | dd of=$INSTALL_DISK bs=4M status=progress; \
@@ -325,10 +327,10 @@ resource "terraform_data" "dedicated_server_talos_install" {
            echo 'Talos installation complete. Rebooting...'; \
            reboot" || true
 
-      echo "Server $HOSTNAME rebooting into Talos. Waiting 90s..."
-      sleep 90
+      echo "Server $HOSTNAME rebooting into Talos. Waiting 120s..."
+      sleep 120
 
-      # 4. Wait for Talos API
+      # 4. Wait for Talos API (DHCP on metal gives public IP)
       for i in $(seq 1 30); do
         if talosctl --talosconfig "$TALOS_CFG" \
            -e "$PUBLIC_IP" -n "$PUBLIC_IP" version >/dev/null 2>&1; then
@@ -339,7 +341,7 @@ resource "terraform_data" "dedicated_server_talos_install" {
         sleep 10
       done
 
-      echo "WARNING: Talos API not reachable after timeout. Config apply may fail."
+      echo "WARNING: Talos API not reachable after timeout."
     EOT
   }
 }
