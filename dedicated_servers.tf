@@ -230,7 +230,7 @@ resource "terraform_data" "dedicated_server_talos_install" {
       PRIVATE_IP="${each.value.private_ipv4}"
       HOSTNAME="${each.value.hostname}"
       INSTALL_DISK="${each.value.install_disk}"
-      SSH_KEY="${each.value.rescue_ssh_key_path}"
+      SSH_KEY="$(eval echo ${each.value.rescue_ssh_key_path})"
       IMAGE_URL="${local.talos_amd64_image_url}"
 
       TALOS_CFG=$(mktemp)
