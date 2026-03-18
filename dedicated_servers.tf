@@ -69,10 +69,22 @@ resource "hcloud_network_subnet" "dedicated_vswitch" {
 }
 
 
-# Metal image for dedicated servers (different platform than cloud VMs)
+# Metal schematic — no qemu-guest-agent (blocks boot on bare metal)
+resource "talos_image_factory_schematic" "metal" {
+  count = length(local.dedicated_servers_talos) > 0 ? 1 : 0
+  schematic = yamlencode({
+    customization = {
+      systemExtensions = {
+        officialExtensions = []
+      }
+    }
+  })
+}
+
+# Metal image for dedicated servers
 data "talos_image_factory_urls" "metal_amd64" {
   talos_version = var.talos_version
-  schematic_id  = local.talos_schematic_id
+  schematic_id  = length(talos_image_factory_schematic.metal) > 0 ? talos_image_factory_schematic.metal[0].id : local.talos_schematic_id
   platform      = "metal"
   architecture  = "amd64"
 }
