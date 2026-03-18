@@ -459,6 +459,7 @@ variable "dedicated_servers" {
     taints            = optional(list(string), [])
     install_disk      = optional(string, "/dev/nvme0n1")
     rescue_ssh_key_path = optional(string, "~/.ssh/id_rsa")
+    reinstall         = optional(bool, false)
   }))
   default     = []
   description = "Dedicated servers to join cluster as workers. Module auto-detects Talos, activates rescue if needed, installs, and joins."

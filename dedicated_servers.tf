@@ -25,6 +25,7 @@ locals {
       )]
       install_disk        = s.install_disk
       rescue_ssh_key_path = s.rescue_ssh_key_path
+      reinstall           = s.reinstall
     }
   ]
 
@@ -246,7 +247,8 @@ resource "terraform_data" "dedicated_server_talos_install" {
   triggers_replace = [
     var.talos_version,
     local.talos_schematic_id,
-    each.value.install_disk
+    each.value.install_disk,
+    each.value.reinstall
   ]
 
   provisioner "local-exec" {
@@ -271,13 +273,18 @@ resource "terraform_data" "dedicated_server_talos_install" {
       trap 'rm -f "$TALOS_CFG"' EXIT
       echo "$TALOSCONFIG" > "$TALOS_CFG"
 
+      REINSTALL="${each.value.reinstall}"
       echo "=== Dedicated server $HOSTNAME ($PUBLIC_IP) ==="
 
-      # 1. Check if Talos is already running
-      if talosctl --talosconfig "$TALOS_CFG" \
-         -e "$PUBLIC_IP" -n "$PRIVATE_IP" version >/dev/null 2>&1; then
-        echo "Talos is already running on $HOSTNAME. Skipping install."
-        exit 0
+      # 1. Check if Talos is already running (skip if reinstall=true)
+      if [ "$REINSTALL" != "true" ]; then
+        if talosctl --talosconfig "$TALOS_CFG" \
+           -e "$PUBLIC_IP" -n "$PRIVATE_IP" version >/dev/null 2>&1; then
+          echo "Talos is already running on $HOSTNAME. Skipping install."
+          exit 0
+        fi
+      else
+        echo "Reinstall requested for $HOSTNAME. Forcing rescue + install."
       fi
 
       echo "Talos not running on $HOSTNAME."
