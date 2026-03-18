@@ -96,6 +96,7 @@ locals {
           hostname = s.hostname
           interfaces = [{
             interface = s.network_interface
+            dhcp      = true
             vlans = [{
               vlanId    = s.vlan_id
               mtu       = 1400
