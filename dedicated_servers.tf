@@ -322,6 +322,8 @@ resource "terraform_data" "dedicated_server_talos_install" {
           "set -eu; \
            echo 'Downloading Talos metal image...'; \
            wget -q -O /tmp/talos.img '$IMAGE_URL'; \
+           echo 'Wiping disk signatures...'; \
+           wipefs -af $INSTALL_DISK; \
            echo 'Writing Talos to disk $INSTALL_DISK...'; \
            case '$IMAGE_URL' in \
              *.zst) zstd -d -c /tmp/talos.img | dd of=$INSTALL_DISK bs=4M status=progress ;; \
