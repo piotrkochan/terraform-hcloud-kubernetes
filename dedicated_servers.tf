@@ -95,7 +95,9 @@ locals {
         network = {
           hostname = s.hostname
           interfaces = [{
-            interface = s.network_interface
+            deviceSelector = {
+              physical = true
+            }
             dhcp      = true
             vlans = [{
               vlanId    = s.vlan_id
