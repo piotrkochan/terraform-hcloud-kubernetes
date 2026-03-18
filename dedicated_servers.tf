@@ -99,7 +99,7 @@ locals {
       machine = {
         install = {
           disk            = s.install_disk
-          image           = local.talos_installer_image_url
+          image           = data.talos_image_factory_urls.metal_amd64.urls.installer
           extraKernelArgs = var.talos_extra_kernel_args
         }
         nodeLabels      = s.labels
