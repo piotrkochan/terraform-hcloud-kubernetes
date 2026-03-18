@@ -231,6 +231,7 @@ resource "terraform_data" "upgrade_dedicated_server" {
     data.external.talosctl_version_check,
     data.talos_machine_configuration.dedicated_server,
     terraform_data.dedicated_server_talos_install,
+    talos_machine_configuration_apply.dedicated_server,
     terraform_data.upgrade_control_plane,
     terraform_data.upgrade_worker,
     terraform_data.upgrade_cluster_autoscaler
@@ -272,8 +273,7 @@ resource "terraform_data" "upgrade_kubernetes" {
     data.external.talosctl_version_check,
     terraform_data.upgrade_control_plane,
     terraform_data.upgrade_worker,
-    terraform_data.upgrade_cluster_autoscaler,
-    terraform_data.upgrade_dedicated_server
+    terraform_data.upgrade_cluster_autoscaler
   ]
 }
 
