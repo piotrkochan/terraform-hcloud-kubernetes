@@ -108,7 +108,11 @@ locals {
                   network = local.network_ipv4_cidr
                   gateway = cidrhost(var.dedicated_servers_vswitch_ip_range, 1)
                 }],
-                local.talos_extra_routes
+                [for cidr in var.talos_extra_routes : {
+                  network = cidr
+                  gateway = cidrhost(var.dedicated_servers_vswitch_ip_range, 1)
+                  metric  = 512
+                }]
               )
             }]
           }]
