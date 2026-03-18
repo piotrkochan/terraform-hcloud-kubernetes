@@ -97,18 +97,19 @@ locals {
           interfaces = [{
             interface = s.network_interface
             dhcp      = true
-            vlans = [{
-              vlanId    = s.vlan_id
-              mtu       = 1400
-              addresses = ["${s.private_ipv4}/${s.private_ipv4_cidr}"]
-              routes = concat(
-                [{
-                  network = local.network_ipv4_cidr
-                  gateway = local.network_ipv4_gateway
-                }],
-                local.talos_extra_routes
-              )
-            }]
+            # VLAN temporarily disabled for debugging
+            # vlans = [{
+            #   vlanId    = s.vlan_id
+            #   mtu       = 1400
+            #   addresses = ["${s.private_ipv4}/${s.private_ipv4_cidr}"]
+            #   routes = concat(
+            #     [{
+            #       network = local.network_ipv4_cidr
+            #       gateway = local.network_ipv4_gateway
+            #     }],
+            #     local.talos_extra_routes
+            #   )
+            # }]
           }]
           nameservers      = local.talos_nameservers
           extraHostEntries = local.talos_extra_host_entries
