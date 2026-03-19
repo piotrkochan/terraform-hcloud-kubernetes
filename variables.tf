@@ -745,15 +745,9 @@ variable "talos_machine_configuration_apply_mode" {
   description = "Determines how changes to Talos machine configurations are applied. 'auto' (default) applies changes immediately and reboots if necessary. 'reboot' applies changes and then reboots the node. 'no_reboot' applies changes immediately without a reboot, failing if a reboot is required. 'staged' stages changes to apply on the next reboot without initiating a reboot."
 
   validation {
-    condition     = contains(["auto", "reboot", "no_reboot", "staged"], var.talos_machine_configuration_apply_mode)
-    error_message = "The talos_machine_configuration_apply_mode must be 'auto', 'reboot', 'no_reboot', or 'staged'."
+    condition     = contains(["auto", "reboot", "no_reboot", "staged", "staged_if_needing_reboot"], var.talos_machine_configuration_apply_mode)
+    error_message = "The talos_machine_configuration_apply_mode must be 'auto', 'reboot', 'no_reboot', 'staged', or 'staged_if_needing_reboot'."
   }
-}
-
-variable "talos_prevent_uncontrolled_reboots" {
-  type        = bool
-  default     = true
-  description = "When true with apply_mode=auto, performs a dry-run check and switches to staged mode if a reboot would be required. Prevents simultaneous uncontrolled reboots of all nodes."
 }
 
 variable "talos_sysctls_extra_args" {
