@@ -306,14 +306,20 @@ variable "control_plane_nodepools" {
     taints      = optional(list(string), [])
     count       = optional(number, 1)
     rdns        = optional(string)
-    rdns_ipv4   = optional(string)
-    rdns_ipv6   = optional(string)
+    rdns_ipv4     = optional(string)
+    rdns_ipv6     = optional(string)
+    subnet_index  = optional(number, 0)
   }))
-  description = "Configures the number and attributes of Control Plane nodes."
+  description = "Configures the number and attributes of Control Plane nodes. subnet_index must be unique per nodepool and determines the subnet CIDR."
 
   validation {
     condition     = length(var.control_plane_nodepools) == length(distinct([for np in var.control_plane_nodepools : np.name]))
     error_message = "Control Plane nodepool names must be unique to avoid configuration conflicts."
+  }
+
+  validation {
+    condition     = length(var.control_plane_nodepools) == length(distinct([for np in var.control_plane_nodepools : np.subnet_index]))
+    error_message = "Control Plane nodepool subnet_index values must be unique to avoid subnet CIDR conflicts."
   }
 
   validation {

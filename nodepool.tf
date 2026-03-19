@@ -30,7 +30,8 @@ locals {
           { key = "node-role.kubernetes.io/control-plane", value = "", effect = "NoSchedule" }
         ]
       ),
-      count = np.count,
+      count        = np.count,
+      subnet_index = np.subnet_index,
     }
   ]
 

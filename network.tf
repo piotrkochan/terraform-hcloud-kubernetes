@@ -29,7 +29,7 @@ locals {
 
   # Control plane VIPs
   control_plane_public_vip_ipv4  = local.control_plane_public_vip_ipv4_enabled ? data.hcloud_floating_ip.control_plane_ipv4[0].ip_address : null
-  control_plane_private_vip_ipv4 = cidrhost(hcloud_network_subnet.control_plane.ip_range, -2)
+  control_plane_private_vip_ipv4 = cidrhost(hcloud_network_subnet.control_plane[local.control_plane_nodepools[0].name].ip_range, -2)
 
   # Lists for worker nodes
   worker_public_ipv4_list  = compact(distinct([for server in hcloud_server.worker : server.ipv4_address]))
@@ -66,6 +66,8 @@ resource "hcloud_network" "this" {
 }
 
 resource "hcloud_network_subnet" "control_plane" {
+  for_each = { for np in local.control_plane_nodepools : np.name => np }
+
   network_id   = local.hcloud_network_id
   type         = "cloud"
   network_zone = local.hcloud_network_zone
@@ -73,7 +75,7 @@ resource "hcloud_network_subnet" "control_plane" {
   ip_range = cidrsubnet(
     local.network_node_ipv4_cidr,
     local.network_node_ipv4_subnet_mask_size - split("/", local.network_node_ipv4_cidr)[1],
-    0 + (local.network_node_ipv4_cidr_skip_first_subnet ? 1 : 0)
+    each.value.subnet_index + (local.network_node_ipv4_cidr_skip_first_subnet ? 1 : 0)
   )
 }
 

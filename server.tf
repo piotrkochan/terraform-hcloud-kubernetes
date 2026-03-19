@@ -8,9 +8,9 @@ resource "hcloud_server" "control_plane" {
         keep_disk          = local.control_plane_nodepools[np_index].keep_disk,
         labels             = local.control_plane_nodepools[np_index].labels,
         placement_group_id = hcloud_placement_group.control_plane.id,
-        subnet             = hcloud_network_subnet.control_plane,
+        subnet             = hcloud_network_subnet.control_plane[local.control_plane_nodepools[np_index].name],
         ipv4_private = cidrhost(
-          hcloud_network_subnet.control_plane.ip_range,
+          hcloud_network_subnet.control_plane[local.control_plane_nodepools[np_index].name].ip_range,
           np_index * 10 + cp_index + 1
         )
       }

@@ -317,7 +317,7 @@ locals {
         discovery = local.talos_discovery
         etcd = merge(
           {
-            advertisedSubnets = [hcloud_network_subnet.control_plane.ip_range]
+            advertisedSubnets = [hcloud_network_subnet.control_plane[local.control_plane_nodepools[0].name].ip_range]
             extraArgs = {
               "listen-metrics-urls" = "http://0.0.0.0:2381"
             }
