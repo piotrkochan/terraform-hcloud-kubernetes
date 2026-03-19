@@ -387,13 +387,19 @@ variable "worker_nodepools" {
     rdns_ipv4       = optional(string)
     rdns_ipv6       = optional(string)
     placement_group = optional(bool, true)
+    subnet_index    = number
   }))
   default     = []
-  description = "Defines configuration settings for Worker node pools within the cluster."
+  description = "Defines configuration settings for Worker node pools within the cluster. subnet_index must be unique per nodepool and determines the subnet CIDR — it must not change after creation."
 
   validation {
     condition     = length(var.worker_nodepools) == length(distinct([for np in var.worker_nodepools : np.name]))
     error_message = "Worker nodepool names must be unique to avoid configuration conflicts."
+  }
+
+  validation {
+    condition     = length(var.worker_nodepools) == length(distinct([for np in var.worker_nodepools : np.subnet_index]))
+    error_message = "Worker nodepool subnet_index values must be unique to avoid subnet CIDR conflicts."
   }
 
   validation {

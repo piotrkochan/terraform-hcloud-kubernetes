@@ -99,7 +99,7 @@ resource "hcloud_network_subnet" "worker" {
   ip_range = cidrsubnet(
     local.network_node_ipv4_cidr,
     local.network_node_ipv4_subnet_mask_size - split("/", local.network_node_ipv4_cidr)[1],
-    2 + (local.network_node_ipv4_cidr_skip_first_subnet ? 1 : 0) + index(local.worker_nodepools, each.value)
+    2 + (local.network_node_ipv4_cidr_skip_first_subnet ? 1 : 0) + each.value.subnet_index
   )
 }
 
