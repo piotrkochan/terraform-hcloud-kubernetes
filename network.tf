@@ -72,10 +72,11 @@ resource "hcloud_network_subnet" "control_plane" {
   type         = "cloud"
   network_zone = local.hcloud_network_zone
 
+  # CP nodepools: slots 0-7
   ip_range = cidrsubnet(
     local.network_node_ipv4_cidr,
     local.network_node_ipv4_subnet_mask_size - split("/", local.network_node_ipv4_cidr)[1],
-    each.value.subnet_index + (local.network_node_ipv4_cidr_skip_first_subnet ? 1 : 0)
+    (local.network_node_ipv4_cidr_skip_first_subnet ? 1 : 0) + each.value.subnet_index
   )
 }
 
@@ -84,10 +85,11 @@ resource "hcloud_network_subnet" "load_balancer" {
   type         = "cloud"
   network_zone = local.hcloud_network_zone
 
+  # LB: slot 30
   ip_range = cidrsubnet(
     local.network_node_ipv4_cidr,
     local.network_node_ipv4_subnet_mask_size - split("/", local.network_node_ipv4_cidr)[1],
-    1 + (local.network_node_ipv4_cidr_skip_first_subnet ? 1 : 0)
+    (local.network_node_ipv4_cidr_skip_first_subnet ? 1 : 0) + 30
   )
 }
 
@@ -98,10 +100,11 @@ resource "hcloud_network_subnet" "worker" {
   type         = "cloud"
   network_zone = local.hcloud_network_zone
 
+  # Worker nodepools: slots 8-23
   ip_range = cidrsubnet(
     local.network_node_ipv4_cidr,
     local.network_node_ipv4_subnet_mask_size - split("/", local.network_node_ipv4_cidr)[1],
-    2 + (local.network_node_ipv4_cidr_skip_first_subnet ? 1 : 0) + each.value.subnet_index
+    (local.network_node_ipv4_cidr_skip_first_subnet ? 1 : 0) + 8 + each.value.subnet_index
   )
 }
 
