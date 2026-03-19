@@ -106,7 +106,6 @@ locals {
         nodeAnnotations = s.annotations
         certSANs        = local.certificate_san
         network = {
-          hostname = s.hostname
           interfaces = [{
             deviceSelector = {
               physical = true
@@ -219,6 +218,12 @@ data "talos_machine_configuration" "dedicated_server" {
 
   config_patches = concat(
     [yamlencode(local.dedicated_server_talos_config_patch[each.key])],
+    [yamlencode({
+      apiVersion = "v1alpha1"
+      kind       = "HostnameConfig"
+      hostname   = each.key
+      auto       = "off"
+    })],
     [for patch in var.dedicated_servers_config_patches : yamlencode(patch)]
   )
 }

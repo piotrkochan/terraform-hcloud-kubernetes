@@ -171,7 +171,6 @@ locals {
         }
         certSANs = local.certificate_san
         network = {
-          hostname = node.name
           interfaces = concat(
             local.talos_public_interface_enabled ? [{
               interface = "eth0"
@@ -363,7 +362,6 @@ locals {
         nodeAnnotations = local.worker_nodepools_map[node.labels.nodepool].annotations
         certSANs        = local.certificate_san
         network = {
-          hostname = node.name
           interfaces = concat(
             local.talos_public_interface_enabled ? [{
               interface = "eth0"
@@ -587,6 +585,12 @@ data "talos_machine_configuration" "control_plane" {
 
   config_patches = concat(
     [yamlencode(local.control_plane_talos_config_patch[each.key])],
+    [yamlencode({
+      apiVersion = "v1alpha1"
+      kind       = "HostnameConfig"
+      hostname   = each.key
+      auto       = "off"
+    })],
     [for patch in var.control_plane_config_patches : yamlencode(patch)]
   )
 }
@@ -605,6 +609,12 @@ data "talos_machine_configuration" "worker" {
 
   config_patches = concat(
     [yamlencode(local.worker_talos_config_patch[each.key])],
+    [yamlencode({
+      apiVersion = "v1alpha1"
+      kind       = "HostnameConfig"
+      hostname   = each.key
+      auto       = "off"
+    })],
     [for patch in var.worker_config_patches : yamlencode(patch)]
   )
 }
