@@ -72,6 +72,7 @@ locals {
     worker_nodes = concat(
       local.worker_private_ipv4_list,
       local.cluster_autoscaler_private_ipv4_list,
+      local.dedicated_servers_talos_private_ipv4_list
     )
   })
 
@@ -98,6 +99,7 @@ locals {
     worker_nodes = concat(
       local.worker_private_ipv4_list,
       local.cluster_autoscaler_private_ipv4_list,
+      local.dedicated_servers_talos_private_ipv4_list
     )
   })
 
