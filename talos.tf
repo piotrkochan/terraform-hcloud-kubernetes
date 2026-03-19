@@ -435,6 +435,31 @@ resource "terraform_data" "synchronize_manifests" {
   ]
 }
 
+data "talos_cluster_health" "this" {
+  count = var.cluster_healthcheck_enabled && local.cluster_initialized ? 1 : 0
+
+  client_configuration = talos_machine_secrets.this.client_configuration
+  control_plane_nodes  = local.control_plane_private_ipv4_list
+  endpoints            = local.control_plane_public_ipv4_list
+  worker_nodes = concat(
+    local.worker_private_ipv4_list,
+    local.cluster_autoscaler_private_ipv4_list,
+    local.dedicated_servers_talos_private_ipv4_list
+  )
+
+  timeouts {
+    read = "10m"
+  }
+
+  depends_on = [
+    talos_machine_bootstrap.this,
+    talos_machine_configuration_apply.control_plane,
+    talos_machine_configuration_apply.worker,
+    talos_machine_configuration_apply.dedicated_server,
+    terraform_data.talos_machine_configuration_apply_cluster_autoscaler
+  ]
+}
+
 resource "tls_private_key" "state" {
   algorithm = "RSA"
   rsa_bits  = 2048
