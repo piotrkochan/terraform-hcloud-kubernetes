@@ -327,10 +327,6 @@ variable "control_plane_nodepools" {
     error_message = "The total count of all nodes in Control Plane nodepools must not exceed 9."
   }
 
-  # validation {
-  #   condition     = sum([for np in var.control_plane_nodepools : np.count]) % 2 == 1
-  #   error_message = "The sum of all Control Plane nodes must be odd to ensure high availability."
-  }
 
   validation {
     condition = alltrue([
