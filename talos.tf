@@ -315,7 +315,7 @@ resource "talos_machine_configuration_apply" "control_plane" {
 
   on_destroy = {
     graceful = var.cluster_graceful_destroy
-    reset    = false
+    reset    = var.cluster_graceful_destroy
     reboot   = false
   }
 
@@ -336,7 +336,7 @@ resource "talos_machine_configuration_apply" "worker" {
 
   on_destroy = {
     graceful = var.cluster_graceful_destroy
-    reset    = false
+    reset    = var.cluster_graceful_destroy
     reboot   = false
   }
 
