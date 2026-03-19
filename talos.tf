@@ -76,6 +76,32 @@ locals {
     )
   })
 
+  # Dedicated servers use metal installer (no qemu-guest-agent) and exclude
+  # themselves from health check worker_nodes to avoid deadlocks.
+  talosctl_commands_dedicated = templatefile("${path.module}/templates/talosctl_commands.sh.tftpl", {
+    talos_upgrade_debug                 = var.talos_upgrade_debug
+    talos_upgrade_force                 = var.talos_upgrade_force
+    talos_upgrade_insecure              = var.talos_upgrade_insecure
+    talos_upgrade_stage                 = var.talos_upgrade_stage
+    talos_upgrade_reboot_mode           = var.talos_upgrade_reboot_mode
+    talos_installer_image_url           = length(talos_image_factory_schematic.metal) > 0 ? data.talos_image_factory_urls.metal_amd64.urls.installer : local.talos_installer_image_url
+    talosctl_retries                    = var.talosctl_retries
+    healthcheck_enabled                 = var.cluster_healthcheck_enabled
+    talos_primary_node                  = local.talos_primary_node_private_ipv4
+    kube_api_url                        = local.kube_api_url_external
+    kubernetes_version                  = var.kubernetes_version
+    kubernetes_apiserver_image          = var.kubernetes_apiserver_image
+    kubernetes_controller_manager_image = var.kubernetes_controller_manager_image
+    kubernetes_scheduler_image          = var.kubernetes_scheduler_image
+    kubernetes_proxy_image              = var.kubernetes_proxy_image
+    kubernetes_kubelet_image            = var.kubernetes_kubelet_image
+    control_plane_nodes                 = local.control_plane_private_ipv4_list
+    worker_nodes = concat(
+      local.worker_private_ipv4_list,
+      local.cluster_autoscaler_private_ipv4_list,
+    )
+  })
+
   # Cluster Status
   cluster_initialized = length(data.hcloud_certificates.state.certificates) > 0
 }
@@ -212,12 +238,12 @@ resource "terraform_data" "upgrade_dedicated_server" {
     quiet = true
     command = local.cluster_initialized ? join("\n", [
       "set -eu",
-      local.talosctl_commands,
+      local.talosctl_commands_dedicated,
       "printf '%s\\n' \"Start upgrading Dedicated Server Nodes\"",
       templatefile("${path.module}/templates/talos_upgrade.sh.tftpl", {
         upgrade_nodes      = local.dedicated_servers_talos_private_ipv4_list
         talos_version      = var.talos_version
-        talos_schematic_id = local.talos_schematic_id
+        talos_schematic_id = length(talos_image_factory_schematic.metal) > 0 ? talos_image_factory_schematic.metal[0].id : local.talos_schematic_id
       }),
       "printf '%s\\n' \"Dedicated Server Nodes upgraded successfully\"",
     ]) : "printf '%s\\n' \"Cluster not initialized, skipping Dedicated Server Node upgrade\""
