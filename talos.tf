@@ -312,6 +312,7 @@ resource "talos_machine_configuration_apply" "control_plane" {
   endpoint                    = var.cluster_access == "private" ? tolist(each.value.network)[0].ip : coalesce(each.value.ipv4_address, each.value.ipv6_address)
   node                        = tolist(each.value.network)[0].ip
   apply_mode                  = var.talos_machine_configuration_apply_mode
+  prevent_uncontrolled_reboots = var.talos_prevent_uncontrolled_reboots
 
   on_destroy = {
     graceful = var.cluster_graceful_destroy
@@ -333,6 +334,7 @@ resource "talos_machine_configuration_apply" "worker" {
   endpoint                    = var.cluster_access == "private" ? tolist(each.value.network)[0].ip : coalesce(each.value.ipv4_address, each.value.ipv6_address)
   node                        = tolist(each.value.network)[0].ip
   apply_mode                  = var.talos_machine_configuration_apply_mode
+  prevent_uncontrolled_reboots = var.talos_prevent_uncontrolled_reboots
 
   on_destroy = {
     graceful = var.cluster_graceful_destroy

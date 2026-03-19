@@ -750,6 +750,12 @@ variable "talos_machine_configuration_apply_mode" {
   }
 }
 
+variable "talos_prevent_uncontrolled_reboots" {
+  type        = bool
+  default     = true
+  description = "When true with apply_mode=auto, performs a dry-run check and switches to staged mode if a reboot would be required. Prevents simultaneous uncontrolled reboots of all nodes."
+}
+
 variable "talos_sysctls_extra_args" {
   type        = map(string)
   default     = {}

@@ -232,6 +232,7 @@ resource "talos_machine_configuration_apply" "dedicated_server" {
   endpoint                    = each.value.public_ipv4
   node                        = each.value.private_ipv4
   apply_mode                  = var.talos_machine_configuration_apply_mode
+  prevent_uncontrolled_reboots = var.talos_prevent_uncontrolled_reboots
 
   on_destroy = {
     graceful = var.cluster_graceful_destroy
