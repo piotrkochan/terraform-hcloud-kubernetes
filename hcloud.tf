@@ -10,10 +10,17 @@ locals {
         name      = "hcloud"
         namespace = "kube-system"
       }
-      data = {
-        network = base64encode(local.hcloud_network_id)
-        token   = base64encode(var.hcloud_token)
-      }
+      data = merge(
+        {
+          network = base64encode(local.hcloud_network_id)
+          token   = base64encode(var.hcloud_token)
+          hcloud  = base64encode(var.hcloud_token)
+        },
+        var.dedicated_servers_robot_user != "" ? {
+          "robot-user"     = base64encode(var.dedicated_servers_robot_user)
+          "robot-password" = base64encode(var.dedicated_servers_robot_password)
+        } : {}
+      )
     })
   }
 }
