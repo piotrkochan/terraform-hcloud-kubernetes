@@ -133,6 +133,12 @@ variable "network_ipv4_cidr" {
   description = "Specifies the main IPv4 CIDR block for the network. This CIDR block is used to allocate IP addresses within the network."
 }
 
+variable "network_expose_routes_to_vswitch" {
+  type        = bool
+  default     = false
+  description = "Expose cloud network routes to connected vSwitch. Required for dedicated servers to see pod CIDR routes."
+}
+
 variable "network_node_ipv4_cidr" {
   type        = string
   default     = null # 10.0.64.0/19 when network_ipv4_cidr is 10.0.0.0/16
