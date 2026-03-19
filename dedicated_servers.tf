@@ -137,6 +137,7 @@ locals {
             {
               "cloud-provider"             = "external"
               "rotate-server-certificates" = true
+              "provider-id"                = "hcloud://bm-${s.server_number}"
             },
             var.kubernetes_kubelet_extra_args
           )
