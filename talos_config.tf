@@ -52,10 +52,9 @@ locals {
             local.kube_api_load_balancer_public_ipv4,
             local.kube_api_load_balancer_public_ipv6
           ],
-          # Control Plane Node IPs
-          local.control_plane_private_ipv4_list,
-          local.control_plane_public_ipv4_list,
-          local.control_plane_public_ipv6_list,
+          # Control Plane Node IPs — excluded to prevent config changes
+          # (and kube-apiserver restarts) when adding/removing CP nodes.
+          # Clients should connect via LB or VIP, not directly to CP nodes.
           # Other Addresses
           [var.kube_api_hostname],
           ["127.0.0.1", "::1", "localhost"],
