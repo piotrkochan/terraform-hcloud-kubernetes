@@ -18,7 +18,7 @@ resource "hcloud_server" "control_plane" {
   ]...)
 
   name                     = each.key
-  image                    = substr(each.value.server_type, 0, 3) == "cax" ? data.hcloud_image.arm64[0].id : data.hcloud_image.amd64[0].id
+  image                    = coalesce(var.hcloud_image_id, substr(each.value.server_type, 0, 3) == "cax" ? try(data.hcloud_image.arm64[0].id, null) : try(data.hcloud_image.amd64[0].id, null))
   server_type              = each.value.server_type
   location                 = each.value.location
   placement_group_id       = each.value.placement_group_id
@@ -82,7 +82,7 @@ resource "hcloud_server" "worker" {
   ]...)
 
   name                     = each.key
-  image                    = substr(each.value.server_type, 0, 3) == "cax" ? data.hcloud_image.arm64[0].id : data.hcloud_image.amd64[0].id
+  image                    = coalesce(var.hcloud_image_id, substr(each.value.server_type, 0, 3) == "cax" ? try(data.hcloud_image.arm64[0].id, null) : try(data.hcloud_image.amd64[0].id, null))
   server_type              = each.value.server_type
   location                 = each.value.location
   placement_group_id       = each.value.placement_group_id

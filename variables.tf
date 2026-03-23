@@ -651,6 +651,12 @@ variable "talos_schematic_id" {
   description = "Specifies the Talos schematic ID used for selecting the specific Image and Installer versions in deployments. This has precedence over `talos_image_extensions`"
 }
 
+variable "hcloud_image_id" {
+  type        = number
+  default     = null
+  description = "Hetzner Cloud image ID to use for servers. When set, skips packer build and image lookup entirely."
+}
+
 variable "talos_image_extensions" {
   type        = list(string)
   default     = []

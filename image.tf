@@ -5,14 +5,14 @@ locals {
   talos_amd64_image_url     = data.talos_image_factory_urls.amd64.urls.disk_image
   talos_arm64_image_url     = data.talos_image_factory_urls.arm64.urls.disk_image
 
-  amd64_image_required = anytrue([
+  amd64_image_required = var.hcloud_image_id == null && anytrue([
     for np in concat(
       local.control_plane_nodepools,
       local.worker_nodepools,
       local.cluster_autoscaler_nodepools
     ) : substr(np.server_type, 0, 3) != "cax"
   ])
-  arm64_image_required = anytrue([
+  arm64_image_required = var.hcloud_image_id == null && anytrue([
     for np in concat(
       local.control_plane_nodepools,
       local.worker_nodepools,
